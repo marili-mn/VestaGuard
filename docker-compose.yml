@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # 1. Frontend (React + Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vestaguard-ui
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - vesta-network
+
+  # 2. The Neural Core (FastAPI + AutoGen)
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vestaguard-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - vesta-network
+
+  # 3. AutoGen Studio (Visual Dashboard)
+  autogen-studio:
+    image: python:3.11-slim
+    container_name: vestaguard-studio
+    working_dir: /app
+    command: >
+      sh -c "pip install autogenstudio && 
+             autogenstudio ui --port 8081 --host 0.0.0.0 --appdir /app/autogen_data"
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/autogen_data:/app/autogen_data
+    restart: unless-stopped
+    networks:
+      - vesta-network
+
+networks:
+  vesta-network:
+    driver: bridge
